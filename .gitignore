@@ -1,0 +1,24 @@
+# Archivo .gitignore
+# Este archivo le dice a Git qué archivos NO subir al repositorio
+
+# Ignorar el archivo .env porque contiene secretos
+.env
+
+# Ignorar claves SSH y archivos .pem de AWS (SEGURIDAD)
+.ssh/
+*.pem
+*.key
+
+# Ignorar el entorno virtual de Python
+.venv/
+venv/
+env/
+
+# Ignorar archivos temporales de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignorar archivos de Jupyter
+.ipynb_checkpoints/
