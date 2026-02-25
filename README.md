@@ -11,7 +11,7 @@
 [![DolarAPI](https://img.shields.io/badge/DolarAPI-USD%2FCOP-FFD700)](https://dolarapi.com/)
 [![Pandas](https://img.shields.io/badge/Pandas-Data%20Analysis-150458?logo=pandas&logoColor=white)](https://pandas.pydata.org/)
 
-[Descripción](#-descripción) • [Arquitectura](#-arquitectura-etl) • [Estructura](#-estructura-del-proyecto) • [DB](#-base-de-datos) • [Instalación](#-instalación) • [Uso](#-uso) • [Buenas Prácticas](#-buenas-prácticas)
+[Descripción](#-descripción) • [Arquitectura](#-arquitectura-etl) • [Estructura](#-estructura-del-proyecto) • [DB](#-base-de-datos) • [Instalación](#-instalación) • [Uso](#-uso) • [Producción](#-despliegue-en-producción) • [Buenas Prácticas](#-buenas-prácticas)
 
 </div>
 
@@ -240,6 +240,97 @@ df = pd.read_sql(
 
 ---
 
+## ☁️ Despliegue en Producción
+
+El pipeline está desplegado y corriendo de forma autónoma en una instancia **AWS EC2** (Ubuntu), ejecutándose automáticamente cada hora mediante **cron**.
+
+### Arquitectura de producción
+
+```
+┌─────────────┐        ┌──────────────────────────────────┐
+│  CoinGecko  │        │          AWS EC2 (Ubuntu)        │
+│  DolarAPI   │──────▶ │                                  │
+└─────────────┘        │  ┌─────────────────────────────┐ │
+                       │  │         cron (cada hora)    │ │
+                       │  │   0 * * * * python run_...  │ │
+                       │  └──────────────┬──────────────┘ │
+                       │                 │                 │
+                       │  ┌──────────────▼──────────────┐ │
+                       │  │     ETL Pipeline             │ │
+                       │  │  extract → transform → load  │ │
+                       │  └──────────────┬──────────────┘ │
+                       │                 │                 │
+                       │  ┌──────────────▼──────────────┐ │
+                       │  │       SQLite DB              │ │
+                       │  │   crypto_prices.db           │ │
+                       │  └─────────────────────────────┘ │
+                       └──────────────────────────────────┘
+```
+
+### Pasos del despliegue
+
+**1. Preparar el servidor**
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install python3 python3-pip python3-venv git -y
+```
+
+**2. Clonar el repositorio**
+```bash
+git clone https://github.com/mcdatax/crypto-price-pipeline.git
+cd crypto-price-pipeline
+```
+
+**3. Crear entorno virtual e instalar dependencias**
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+**4. Configurar credenciales**
+```bash
+cp .env.example .env
+nano .env  # Agregar COINGECKO_API_KEY
+```
+
+**5. Probar ejecución manual**
+```bash
+.venv/bin/python run_crypto.py
+```
+
+**6. Crear carpeta de logs**
+```bash
+mkdir -p logs
+```
+
+**7. Configurar cron para ejecución automática cada hora**
+```bash
+crontab -e
+```
+Añadir la siguiente línea (usando rutas absolutas, igual que en producción real):
+```
+0 * * * * /ruta/al/proyecto/.venv/bin/python /ruta/al/proyecto/run_crypto.py >> /ruta/al/proyecto/logs/cron.log 2>&1
+```
+
+**8. Verificar logs**
+```bash
+# Ver el log completo
+cat logs/cron.log
+
+# Monitorear en tiempo real
+tail -f logs/cron.log
+```
+
+### Notas de producción
+
+- Se usan **rutas absolutas** en el cron para evitar fallos silenciosos por contexto de directorio.
+- El `2>&1` redirige tanto stdout como stderr al log, capturando errores y salida normal.
+- Cada llamada a API tiene un **timeout definido** para evitar que el proceso quede colgado indefinidamente.
+- Si DolarAPI no responde, el pipeline continúa y guarda los precios de CoinGecko igualmente.
+
+---
+
 ## ✅ Buenas Prácticas aplicadas
 
 Este proyecto fue construido siguiendo los estándares reales de la industria de **Data Engineering**:
@@ -272,7 +363,10 @@ pandas==2.3.3             # Análisis y procesamiento del histórico de precios
 - [x] Pipeline Crypto con histórico en SQLite normalizada
 - [x] Arquitectura ETL modular por capas
 - [x] Gestión segura de credenciales con `.env`
-- [ ] Scheduler automático con APScheduler
+- [x] Despliegue en producción en AWS EC2
+- [x] Automatización con cron (ejecución cada hora)
+- [x] Logs de producción con redirección stdout/stderr
+- [x] Timeouts en llamadas a APIs externos
 - [ ] Logging estructurado (reemplazar `print()` por `logging`)
 - [ ] Tests unitarios con `pytest`
 - [ ] Dashboard de análisis con pandas + matplotlib
