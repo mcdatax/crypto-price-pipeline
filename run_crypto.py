@@ -2,18 +2,16 @@ from config.crypto_config import COINGECKO_API_KEY
 from pipelines.crypto.extract import extract_prices
 from pipelines.crypto.transform import transform_prices
 from pipelines.crypto.load import load_prices
-from db.sqlite import create_tables
+import db.factory as db
 
 
 def run():
     """
     Función principal para ejecutar el pipeline de criptomonedas.
-    Se encarga de obtener los datos, procesarlos y almacenarlos en la DB.
+    El motor de DB (SQLite o MySQL) se selecciona automáticamente según DB_ENGINE en .env.
     """
-    DB_PATH = "crypto_prices.db" # Ruta a la base de datos SQLite
-
-    # Primero: garantizar que la DB y tablas existen
-    create_tables(DB_PATH)
+    # Garantizar que las tablas existen en el motor activo
+    db.create_tables()
 
     print("Iniciando pipeline de criptomonedas...")
 
@@ -25,12 +23,12 @@ def run():
     except Exception as e:
         print(f"Error al obtener datos: {e}")
         return
-    
-    # Paso 2: Procesar y almacenar datos en la DB
+
+    # Paso 2: Transformar y cargar en DB
     print("Procesando y almacenando datos en la DB...")
     try:
         transformed_data = transform_prices(data)
-        load_prices(transformed_data, DB_PATH)
+        load_prices(transformed_data)
         print("Datos procesados y almacenados correctamente.")
     except Exception as e:
         print(f"Error al procesar/almacenar datos: {e}")

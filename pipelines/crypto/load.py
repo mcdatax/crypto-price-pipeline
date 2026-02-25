@@ -1,23 +1,19 @@
-from db.sqlite import get_connection, get_or_create_coin, insert_price_log
+import db.factory as db
 
 
-def load_prices(transformed_data: list, db_path: str) -> None:
+def load_prices(transformed_data: list) -> None:
     """
-    Carga los datos transformados en la base de datos SQLite.
-    Para cada tupla (coin_name, price, timestamp), obtiene o crea el ID de la moneda y luego inserta el registro de precio.
+    Carga los datos transformados en la base de datos activa (SQLite o MySQL).
+    El motor se selecciona automáticamente según DB_ENGINE en el archivo .env.
 
     Args:
         transformed_data (list of tuples): Lista de tuplas con el formato (coin_name, price, timestamp).
-        db_path (str): Ruta al archivo de la base de datos SQLite.
     """
-    conn = get_connection(db_path)
+    conn = db.get_connection()
 
     for coin_name, price, captured_at in transformed_data:
-        # Obtiene o crea el ID de la moneda
-        coin_id = get_or_create_coin(conn, coin_name)
-        # Inserta el registro de precio
-        insert_price_log(conn, coin_id, price, captured_at)
+        coin_id = db.get_or_create_coin(conn, coin_name)
+        db.insert_price_log(conn, coin_id, price, captured_at)
 
-    conn.commit()  # Guarda todos los cambios realizados
-    conn.close()   # Cierra la conexión a la base de datos
-    print(f"Datos cargados exitosamente en: {db_path}")
+    db.commit_and_close(conn)
+    print("Datos cargados exitosamente en la base de datos.")
